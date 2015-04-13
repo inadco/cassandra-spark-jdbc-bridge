@@ -45,7 +45,9 @@ copyAssets := {
 	//copy file dir
   val binDir = baseDirectory.value / "bin" 
   val binDirTarget = file(distDir + "/bin")
+  
   sbt.IO.copyDirectory(binDir, binDirTarget, overwrite = true)
+  Process("chmod -R +x target/dist/bin/*sh").!  
     
   println("Copied files from " + binDir.getAbsolutePath + " to " + binDirTarget.getAbsolutePath);
   

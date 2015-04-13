@@ -8,10 +8,14 @@ import org.joda.time.DateTime
 import org.apache.spark.Logging
 
 /**
+ * Util class to deal with Cassandra rows
  * @author hduong
  */
 class CassandraRowUtils extends Serializable with Logging{
-	
+	/**
+	 * Extract a value of a column from a Cassandra row based on its data type
+	 * Currently only support basic/primitive data types
+	 */
 	def extractCassandraRowValue(row: CassandraRow, colMeta: (String, String)): Any = {	
 		
 		val colName = colMeta._1;
@@ -144,6 +148,10 @@ class CassandraRowUtils extends Serializable with Logging{
 			case _ => throw new RuntimeException("Column " + colName + " has unsupported data type " + cassandraDataType)
 		}
 	}
+	
+	/**
+	 * Convert joda datetime into sql datetime
+	 */
 	def getSqlDate(v: Option[DateTime]): java.sql.Timestamp={
 		if(v.isEmpty){
 			return null;
@@ -151,7 +159,9 @@ class CassandraRowUtils extends Serializable with Logging{
 			return new java.sql.Timestamp(v.get.getMillis)
 		}		
 	}
-	
+	/**
+	 * Map a Cassandra row into a Spark sql row. To be used to construct a RDD
+	 */
 	def convertToSqlRow (row: CassandraRow, colList: Array[(String, String)]): org.apache.spark.sql.Row = {		
 		return org.apache.spark.sql.Row.fromSeq(colList.map(colMeta =>
     				extractCassandraRowValue(row, colMeta))) 

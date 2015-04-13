@@ -4,7 +4,10 @@ import java.util._
 import com.datastax.driver.core._
 import org.apache.spark.SparkConf
 import com.datastax.spark.connector.cql.CassandraConnector
-
+/**
+ * DAO class to extract metadata of all the tables available in Cassandra
+ * @author kmathur
+ */
 class CassandraMetaDataDAO (conf : SparkConf){
 	val rowsList : List[Row]=init(conf)
 	val SCHEMA: String ="keyspace_name"
@@ -19,7 +22,9 @@ class CassandraMetaDataDAO (conf : SparkConf){
 		}
 		return resultSetTables.all()
 	}
-	
+	/**
+	 * Get list of all keyspaces excluding system keyspace
+	 */
 	def getKeySpaceList() : scala.collection.mutable.Set[String]  = {
 		if(rowsList==null){
 			return null
@@ -36,7 +41,9 @@ class CassandraMetaDataDAO (conf : SparkConf){
 		}
 		return keyspaceList
 	}
-	
+	/**
+	 * Get a list of all tables by a keyspace
+	 */
 	def getTableList(keyspace: String) : scala.collection.mutable.Set[String]  = {
 		if(rowsList==null){
 			return null
@@ -51,7 +58,9 @@ class CassandraMetaDataDAO (conf : SparkConf){
 		}
 		return tables
 	}
-	
+	/**
+	 * Get a list of all columns of a table
+	 */
 	def getTableColumns(schema:String,table:String) : collection.mutable.Map[String, String] = {
 		if(rowsList==null){
 			return null

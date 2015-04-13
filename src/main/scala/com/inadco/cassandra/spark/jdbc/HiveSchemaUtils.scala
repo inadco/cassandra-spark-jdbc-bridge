@@ -3,9 +3,14 @@ package com.inadco.cassandra.spark.jdbc
 import org.apache.spark.sql._
 import com.datastax.spark.connector.types.UUIDType
 /**
+ * Util class to deal with hive schemas
  * @author hduong
  */
 object HiveSchemaUtils {
+	/**
+	 * Map a column in Cassandra to a column to be defined in schema RDD
+	 * Currently only support basic/primitive data types.
+	 */
 	def createStructField (colMeta: (String, String)) : StructField = {
 		var dataType: DataType = StringType
 		val colName = colMeta._1;
@@ -39,6 +44,9 @@ object HiveSchemaUtils {
 		StructField(colMeta._1, dataType, true)
 	}
 	
+	/**
+	 * Check to see if two schemas (of RDDs) are the same
+	 */
 	def isSameSchema(hiveSchema1: Option[StructType], hiveSchema2: Option[StructType]): Boolean = {
 		if(hiveSchema1.isEmpty && hiveSchema2.isEmpty){
 			return true;

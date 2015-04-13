@@ -20,6 +20,10 @@ import ExecutionContext.Implicits.global
 import scala.tools.nsc.doc.model.Val
 
 /**
+ * An spark app read and register all Cassandra tables as schema RDDs in Spark SQL and starts an embedded HiveThriftServer2 to make those tables accessible via jdbc:hive2 protocol 
+ * Notes:
+ * - Currently only support basic/primitive data types.
+ * - Cassandra table definitions are fetched every 3 seconds. A new RDD will be created under the same name of the corresponding Cassandra table is changed
  * @author hduong
  */
 object InadcoCSJServer extends Logging {
@@ -28,7 +32,6 @@ object InadcoCSJServer extends Logging {
 			val server = new InadcoCSJServer()
 			server.init()
 			server.start()
-			logInfo("InadcoHiveThriftServer started")
 		} catch {
 			case e: Exception =>
 				logError("Error starting InadcoHiveThriftServer", e)
@@ -41,33 +44,35 @@ object InadcoCSJServer extends Logging {
 class InadcoCSJServer extends Logging{
 	val system = ActorSystem("System")
 	val hiveTables = new scala.collection.mutable.HashMap[String, StructType]()
+	val appConfig = loadConfig()
 	def init(){
 		
 	}
-	def start(){
-		logInfo("Starting InadcoCSJServer")
+	def loadConfig()={
 		
-		//load all the properties files
+	  //load all the properties files
 		val defaultConf = ConfigFactory.load();
-		val overrideFile = new File(System.getenv("INADCO_CSJ_HOME") + "/config/override-application.properties")
+		val overrideFile = new File(System.getenv("INADCO_CSJ_HOME") + "/config/csjb-default.properties")
 		if(overrideFile.exists()){
 			logInfo("Found override properties from: " + overrideFile.toString());
 		}
-		val conf = ConfigFactory.parseFile(overrideFile).withFallback(defaultConf);
-		logInfo("spark.cassandra.connection.host is: " + conf.getString("spark.cassandra.connection.host"));
-		logInfo("spark.cassandra.auth.username is: " + conf.getString("spark.cassandra.auth.username"));
+		ConfigFactory.parseFile(overrideFile).withFallback(defaultConf);		
+	}
+	
+	def start(){
+		logInfo("Starting InadcoCSJBServer.....")
 		
 		//init new spark context
 		val sparkConf = new SparkConf()
-		sparkConf.set("spark.cores.max", conf.getString("spark.cores.max"))
-		sparkConf.set("spark.cassandra.connection.host",conf.getString("spark.cassandra.connection.host"));
-		sparkConf.set("spark.cassandra.auth.username", conf.getString("spark.cassandra.auth.username"));
-		sparkConf.set("spark.cassandra.auth.password", conf.getString("spark.cassandra.auth.password"));
-		sparkConf.set("spark.executor.memory", conf.getString("spark.executor.memory"));
+		sparkConf.set("spark.cores.max", appConfig.getString("spark.cores.max"))
+		sparkConf.set("spark.cassandra.connection.host",appConfig.getString("spark.cassandra.connection.host"));
+		sparkConf.set("spark.cassandra.auth.username", appConfig.getString("spark.cassandra.auth.username"));
+		sparkConf.set("spark.cassandra.auth.password", appConfig.getString("spark.cassandra.auth.password"));
+		sparkConf.set("spark.executor.memory", appConfig.getString("spark.executor.memory"));
 		
 		
-		sparkConf.setMaster(conf.getString("inadco.spark.master"));
-		sparkConf.setAppName(conf.getString("inadco.appName"));
+		sparkConf.setMaster(appConfig.getString("inadco.spark.master"));
+		sparkConf.setAppName(appConfig.getString("inadco.appName"));
 		val sc = new SparkContext(sparkConf)
 		
 		//add handler to gracefully shutdown
@@ -88,9 +93,9 @@ class InadcoCSJServer extends Logging{
 		
 		//register all Cassandra tables		
 		val startDelayMs = new FiniteDuration(0, java.util.concurrent.TimeUnit.MILLISECONDS)
-		val intervalMs = new FiniteDuration(conf.getLong("inadco.tableList.refresh.intervalMs"), java.util.concurrent.TimeUnit.MILLISECONDS)
+		val intervalMs = new FiniteDuration(appConfig.getLong("inadco.tableList.refresh.intervalMs"), java.util.concurrent.TimeUnit.MILLISECONDS)
 
-		val cancellable2 = system.scheduler.schedule(startDelayMs, intervalMs)({
+		val cancellable = system.scheduler.schedule(startDelayMs, intervalMs)({
 			registerCassandraTables(sc, sparkConf, hiveContext)    	
 		})		
 		
@@ -109,8 +114,7 @@ class InadcoCSJServer extends Logging{
 	}
 	
 	def registerCassandraTable(keyspace: String, tableName: String, cassMetaDataDAO: CassandraMetaDataDAO, sc: SparkContext, hiveContext: HiveContext){
-	  	//TODO: try to use dot "." to have "dbName.tableName" in hive but it doesn't work when querying from beeline
-	  	// looks like everything get registered to the "default" database in hive
+	  	//format full table name with keyspace_ prefix
 	  	val hiveTableName = keyspace + "_" + tableName;
 	  	try {
 	  		val rdd = sc.cassandraTable(keyspace, tableName)
@@ -137,7 +141,7 @@ class InadcoCSJServer extends Logging{
 	  		}
 	  		
 		} catch {
-			case e: Exception => logError("Failed to handle table " + hiveTableName, e)
+			case e: Exception => logError("Failed to register table " + hiveTableName, e)
 		}
 	}
 	
