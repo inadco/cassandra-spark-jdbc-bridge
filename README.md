@@ -5,7 +5,9 @@ If you want to query Cassandra data via JDBC and but you want to use the power o
 
 This app (CSJB), which is a Spark app, will automatically registers all Cassandra tables as schema RDDs in Spark SQL and starts an embedded Apache HiveThriftServer to make the RDDs ready to be consumed via "jdbc:hive2" protocol.
 
-With this bridge/server, you can use any BI tool like Jasper, Pentaho or Tableau to query Cassandra tables via Spark SQL which allows you to do many different things like join, group by, etc...
+With this bridge/server, you can use any BI tool like Jasper, Pentaho or Tableau to query Cassandra tables via Spark SQL. You will be able to do many different aggregation and/or filtering operations (like group by, join..) with Cassandra data.
+
+This application uses the Datastax's [spark-cassandra-connector](https://github.com/datastax/spark-cassandra-connector) 
 
 Notes: 
 
@@ -19,7 +21,6 @@ Example: "mykeyspace.test" table in Cassandra will be registered as "mykeyspace_
 Getting started
 
 **Prerequisites**
-
  - Install and start Cassandra 2.1
  - Install and start Spark 1.2
  
