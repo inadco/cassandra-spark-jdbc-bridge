@@ -1,11 +1,11 @@
 
 
 # cassandra-spark-jdbc-bridge
-If you want to query Cassandra data via JDBC and but you want to use the power of Spark SQL to do data processing, you need this application.
+If you want to query Cassandra data via JDBC but you want to use the power of Spark SQL for data processing, you need this application.
 
 This app (CSJB), which is a Spark app, will automatically registers all Cassandra tables as schema RDDs in Spark SQL and starts an embedded Apache HiveThriftServer to make the RDDs ready to be consumed via "jdbc:hive2" protocol.
 
-With this bridge/server, you can use any BI tool like Jasper, Pentaho or Tableau to query Cassandra tables via Spark SQL. You will be able to do many different aggregation and/or filtering operations (like group by, join..) with Cassandra data.
+With this bridge/server, you can use any BI tool like Jasper, Pentaho or Tableau to query Cassandra tables via Spark SQL. You will be able to do many different aggregation and/or filtering operations like group by, join, etc.. with Cassandra data.
 
 This application uses the Datastax's [spark-cassandra-connector](https://github.com/datastax/spark-cassandra-connector) 
 
@@ -15,7 +15,7 @@ Notes:
 **keyspace_tableName**
 Example: "mykeyspace.test" table in Cassandra will be registered as "mykeyspace_mytable" schema RDD.
 
- - As of now, CSJB only supports Cassandra tables with the following data types: `AsciiType, BooleanType, BytesType,CounterColumnType, DateType, DecimalType, DoubleType, LongType, FloatType, Int32Type, IntegerType, LexicalUUIDType, UTF8Type, UUIDType, TimestampType, ReversedType (for TimestampType)`. More data types will be added in the near future (your contribution will be greatly appreciated). 
+ - As of now, CSJB only supports Cassandra tables with the following data types: `AsciiType, BooleanType, BytesType,CounterColumnType, DateType, DecimalType, DoubleType, LongType, FloatType, Int32Type, IntegerType, LexicalUUIDType, UTF8Type, UUIDType, TimestampType, ReversedType (for TimestampType)`. More data types will be added in the near future (your contributions will be greatly appreciated). 
 
 =============
 Getting started
