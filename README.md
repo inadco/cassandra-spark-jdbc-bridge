@@ -48,8 +48,8 @@ Getting started
 
     $INADCO_CSJB_HOME/bin/start.sh
 
-The CSJB server is started at port 10000 
-(to stop it, run $INADCO_CSJB_HOME/bin/stop.sh)
+The CSJB server is started at port 10000 (to stop it, run $INADCO_CSJB_HOME/bin/stop.sh)
+Status of CSJCB app is available via your Spark UI http://YOUR_SPARK_MASTER:8080/
     
 **Query your data**
 
