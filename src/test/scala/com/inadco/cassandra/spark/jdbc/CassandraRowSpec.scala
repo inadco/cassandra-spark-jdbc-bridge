@@ -1,5 +1,7 @@
 package com.inadco.cassandra.spark.jdbc
 
+import com.datastax.spark.connector.types.TextType
+
 import collection.mutable.Stack
 import org.scalatest._
 
@@ -23,7 +25,7 @@ class CassandraRowSuite extends FlatSpec with Matchers {
     a [RuntimeException] should be thrownBy {
       val utils = new CassandraRowUtils()
       
-      utils.extractCassandraRowValue(null, ("testCol","dummyDataType"))
+      utils.extractCassandraRowValue(null, ("testCol",TextType))
     } 
   }
 }

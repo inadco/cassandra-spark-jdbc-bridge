@@ -44,6 +44,10 @@ function is_running {
  }
   
 
+function get_master {
+    master=`cat $INADCO_CSJB_HOME/config/csjb-default.properties | grep inadco.spark.master  | cut -d "=" -f2`
+}
+
 #Chk to see if app is running
 is_running
 
@@ -56,7 +60,7 @@ if [[ -z "$SPARK_HOME" ]]; then
 fi
 
 if [[ -z "$INADCO_CSJB_HOME" ]]; then
-        echo "$INADCO_CSJB_HOME is not set.";
+        echo "INADCO_CSJB_HOME is not set.";
         exit 1;
 fi
 
@@ -66,5 +70,8 @@ if [[ -d $INADCO_CSJB_HOME/var/log ]]; then
         
 fi
 
-$SPARK_HOME/bin/spark-submit --class com.inadco.cassandra.spark.jdbc.InadcoCSJServer --master local[2] $INADCO_CSJB_HOME/inadco-csjb-assembly-1.0.jar >>$INADCO_CSJB_HOME/var/log/log.out \
+get_master
+
+$SPARK_HOME/bin/spark-submit --class com.inadco.cassandra.spark.jdbc.InadcoCSJServer \
+--master $master $INADCO_CSJB_HOME/inadco-csjb-assembly-1.0.jar >>$INADCO_CSJB_HOME/var/log/log.out \
 2>>$INADCO_CSJB_HOME/var/log/log.err & echo $! > $csjb_pid

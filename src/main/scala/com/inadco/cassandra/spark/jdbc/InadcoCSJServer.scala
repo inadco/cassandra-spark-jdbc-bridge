@@ -52,7 +52,7 @@ class InadcoCSJServer extends Logging{
 		
 	  //load all the properties files
 		val defaultConf = ConfigFactory.load();
-		val overrideFile = new File(System.getenv("INADCO_CSJ_HOME") + "/config/csjb-default.properties")
+		val overrideFile = new File(System.getenv("INADCO_CSJB_HOME") + "/config/csjb-default.properties")
 		if(overrideFile.exists()){
 			logInfo("Found override properties from: " + overrideFile.toString());
 		}

@@ -1,6 +1,8 @@
 package com.inadco.cassandra.spark.jdbc
 
 import com.datastax.spark.connector.CassandraRow
+import com.datastax.spark.connector.types._
+import org.apache.spark.sql.cassandra.{ColumnDataType, CassandraRelation}
 import scala.collection.mutable._
 import org.apache.spark.Logging
 import java.sql.Timestamp
@@ -16,15 +18,16 @@ class CassandraRowUtils extends Serializable with Logging{
 	 * Extract a value of a column from a Cassandra row based on its data type
 	 * Currently only support basic/primitive data types
 	 */
-	def extractCassandraRowValue(row: CassandraRow, colMeta: (String, String)): Any = {	
+
+	def extractCassandraRowValue(row: CassandraRow, colMeta: (String, ColumnType[_])): Any = {
 		
 		val colName = colMeta._1;
-		
+
 		var cassandraDataType = colMeta._2
 		//reference this link for all the data types in Cassandra
 		//http://grepcode.com/file/repo1.maven.org/maven2/org.apache.cassandra/cassandra-all/1.1.0/org/apache/cassandra/db/marshal/
 		cassandraDataType match {
-			case "org.apache.cassandra.db.marshal.AsciiType" => {
+			case TextType | AsciiType | VarCharType => {
 				val v = row.getStringOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -32,7 +35,7 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.BooleanType" => {
+			case BooleanType => {
 				val v = row.getBooleanOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -40,15 +43,15 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.BytesType" => return {
-				val v = row.getByteOption(colName)
+			case IntType => return {
+				val v = row.getIntOption(colName)
 				if(v.isEmpty){
 					return null;
 				}else{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.CounterColumnType" => {
+			case BigIntType => return {
 				val v = row.getLongOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -56,15 +59,31 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.DateType" => {
-				val v = row.getDateOption(colName)
+			case CounterType => {
+				val v = row.getLongOption(colName)
 				if(v.isEmpty){
 					return null;
 				}else{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.DecimalType" => {
+			case BlobType => {
+				val v = row.getBytesOption(colName)
+				if(v.isEmpty){
+					return null;
+				}else{
+					return v.get
+				}
+			}
+			case VarIntType => {
+				val v = row.getVarIntOption(colName)
+				if(v.isEmpty){
+					return null;
+				}else{
+					return v.get
+				}
+			}
+			case DecimalType => {
 				val v = row.getDecimalOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -72,7 +91,7 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.DoubleType" => {
+			case DoubleType => {
 				val v = row.getDoubleOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -80,15 +99,7 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.LongType" => {
-				val v = row.getLongOption(colName)
-				if(v.isEmpty){
-					return null;
-				}else{
-					return v.get
-				}
-      }
-			case "org.apache.cassandra.db.marshal.FloatType" => {				
+			case FloatType => {
 				val v = row.getFloatOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -96,23 +107,15 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.Int32Type" => {
-				val v = row.getIntOption(colName)
+			case InetType => {
+				val v = row.getInetOption(colName)
 				if(v.isEmpty){
 					return null;
 				}else{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.IntegerType" => {
-				val v = row.getIntOption(colName)
-				if(v.isEmpty){
-					return null;
-				}else{
-					return v.get
-				}
-			}
-			case "org.apache.cassandra.db.marshal.LexicalUUIDType" => {
+			case UUIDType => {
 				val v = row.getUUIDOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -120,16 +123,7 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.UTF8Type" => return {
-				val v = row.getStringOption(colName)
-				if(v.isEmpty){
-					return null;
-				}else{
-					return v.get
-				}
-			}
-			
-			case "org.apache.cassandra.db.marshal.UUIDType" => {
+			case TimeUUIDType => {
 				val v = row.getUUIDOption(colName)
 				if(v.isEmpty){
 					return null;
@@ -137,14 +131,31 @@ class CassandraRowUtils extends Serializable with Logging{
 					return v.get
 				}
 			}
-			case "org.apache.cassandra.db.marshal.TimestampType" => {				
+			case TimestampType => {
 				val v = row.getDateTimeOption(colName)
 				return getSqlDate(v)
 			}
-			case "org.apache.cassandra.db.marshal.ReversedType(org.apache.cassandra.db.marshal.TimestampType)" => {
-				val v = row.getDateTimeOption(colName)
-				return getSqlDate(v)
+
+			case SetType(et)  => {
+				//TODO: implement
+					return null;
 			}
+
+			case ListType(et) => {
+				//TODO: implement
+				return null;
+			}
+
+			case MapType(kt, vt) => {
+				//TODO: implement
+				return null;
+			}
+
+			case UserDefinedType(_, fields) => return {
+				//TODO: implement
+				return null;
+			}
+
 			case _ => throw new RuntimeException("Column " + colName + " has unsupported data type " + cassandraDataType)
 		}
 	}
@@ -162,7 +173,7 @@ class CassandraRowUtils extends Serializable with Logging{
 	/**
 	 * Map a Cassandra row into a Spark sql row. To be used to construct a RDD
 	 */
-	def convertToSqlRow (row: CassandraRow, colList: Array[(String, String)]): org.apache.spark.sql.Row = {		
+	def convertToSqlRow (row: CassandraRow, colList: Array[(String, ColumnType[_])]): org.apache.spark.sql.Row = {
 		return org.apache.spark.sql.Row.fromSeq(colList.map(colMeta =>
     				extractCassandraRowValue(row, colMeta))) 
     				

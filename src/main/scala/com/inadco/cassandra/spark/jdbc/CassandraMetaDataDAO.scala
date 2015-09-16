@@ -1,43 +1,56 @@
 package com.inadco.cassandra.spark.jdbc
 
 import java.util._
+import com.datastax.driver.core.Row
 import com.datastax.driver.core._
+import com.datastax.spark.connector.types.ColumnType
 import org.apache.spark.SparkConf
-import com.datastax.spark.connector.cql.CassandraConnector
+import com.datastax.spark.connector.cql.{Schema, CassandraConnector}
+import org.apache.spark.sql._
+
 /**
  * DAO class to extract metadata of all the tables available in Cassandra
  * @author kmathur
  */
 class CassandraMetaDataDAO (conf : SparkConf){
-	val rowsList : List[Row]=init(conf)
-	val SCHEMA: String ="keyspace_name"
-	val TABLE:  String ="columnfamily_name"
-	val COLUMN: String ="column_name"
-	val COLUMN_DATA_TYPE: String = "validator"
+	val schemaObjects: collection.mutable.Map[String, collection.mutable.Map[String, collection.mutable.Map[String, ColumnType[_]]]] = init(conf)
 
+	def init(conf: SparkConf) : collection.mutable.Map[String, collection.mutable.Map[String, collection.mutable.Map[String, ColumnType[_]]]] = {
 
-	def init(conf: SparkConf) : List[Row] = {
-		val resultSetTables = CassandraConnector(conf).withSessionDo { 
-			session => session.execute("select keyspace_name, columnfamily_name, column_name,validator from system.schema_columns")
+		val keyspaces = collection.mutable.Map[String, collection.mutable.Map[String, collection.mutable.Map[String, ColumnType[_]]]]()
+
+		Schema.fromCassandra(CassandraConnector(conf)).keyspaces.foreach { keyspace =>
+			if (keyspace.keyspaceName != "system" && keyspace.keyspaceName.indexOf("system_") != 0) {
+
+				val tables = collection.mutable.Map[String, collection.mutable.Map[String, ColumnType[_]]]()
+
+				keyspace.tables.foreach { table =>
+
+					val columns = collection.mutable.Map[String, ColumnType[_]]()
+					table.allColumns.foreach { column =>
+						columns.put(column.columnName, column.columnType)
+					}
+
+					tables.put(table.tableName, columns)
+				}
+
+				keyspaces.put(keyspace.keyspaceName, tables)
+			}
+
 		}
-		return resultSetTables.all()
+		return keyspaces
 	}
 	/**
 	 * Get list of all keyspaces excluding system keyspace
 	 */
 	def getKeySpaceList() : scala.collection.mutable.Set[String]  = {
-		if(rowsList==null){
+		if (schemaObjects == null) {
 			return null
 		}
 		val keyspaceList = scala.collection.mutable.Set[java.lang.String]()
-		
-		for(x <- 0 until rowsList.size()){
-			var next=rowsList.get(x);
-			//take keyspace excluding: "system", "system_*" 
-			val ks = next.getString(SCHEMA)
-			if(ks != "system" && ks.indexOf("system_") != 0){
-				keyspaceList+=next.getString(SCHEMA)
-			}			
+
+		schemaObjects.keys.foreach { keyspace =>
+			keyspaceList += keyspace
 		}
 		return keyspaceList
 	}
@@ -45,34 +58,42 @@ class CassandraMetaDataDAO (conf : SparkConf){
 	 * Get a list of all tables by a keyspace
 	 */
 	def getTableList(keyspace: String) : scala.collection.mutable.Set[String]  = {
-		if(rowsList==null){
+		if (schemaObjects == null || keyspace == null) {
 			return null
 		}
-		val tables = scala.collection.mutable.Set[java.lang.String]()
-		
-		for(x <- 0 until rowsList.size()){
-			var next=rowsList.get(x);
-			if(next.getString(SCHEMA)==keyspace){
-				tables+=next.getString(TABLE)
-			}
+		val tableList = scala.collection.mutable.Set[java.lang.String]()
+
+		val tables = schemaObjects.get(keyspace).getOrElse(null)
+		if (tables == null) {
+			return null
 		}
-		return tables
+		tables.keys.foreach { table =>
+			tableList += table
+		}
+		return tableList
 	}
 	/**
 	 * Get a list of all columns of a table
 	 */
-	def getTableColumns(schema:String,table:String) : collection.mutable.Map[String, String] = {
-		if(rowsList==null){
+	def getTableColumns(keyspace: String, table: String) : collection.mutable.Map[String, ColumnType[_]] = {
+		if (schemaObjects == null || keyspace == null || table == null) {
 			return null
 		}
-		val columns = collection.mutable.Map[String, String]()
-		var x=0;
-		for(x <- 0 until rowsList.size()){
-			var next=rowsList.get(x);
-			if(next.getString(SCHEMA)==schema && next.getString(TABLE)==table){
-				columns.put(next.getString(COLUMN),next.getString(COLUMN_DATA_TYPE));
-				}
-			}
-		return columns
+		val columnList = collection.mutable.Map[String, ColumnType[_]]()
+
+		val tables = schemaObjects.get(keyspace).getOrElse(null)
+		if (tables == null) {
+			return null
+		}
+
+		val columns = tables.get(table).getOrElse(null)
+		if (columns == null) {
+			return null
+		}
+		columns.foreach { case (column:String, types:ColumnType[_]) =>
+			columnList.put(column, types);
+
+		}
+		return columnList
 	}
 }
